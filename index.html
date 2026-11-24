@@ -1,5 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Cubeterra</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cubeterra</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap">
 <style>
@@ -2225,8 +2224,10 @@ function setState(s){
   menu.hidden=!(s==='start'||s==='pause');invEl.hidden=s!=='inv';deadEl.hidden=s!=='dead';
   if(s!=='inv')heldEl.hidden=true;
   playBtn.textContent=s==='start'?'Play':'Resume';
+  var bt=document.getElementById('bottom');if(bt)bt.style.display=(s==='start'||s==='pause')?'none':'';
   if(window.syncTouch)window.syncTouch();
 }
+document.getElementById('bottom').style.display='none';
 function requestLock(){
   if(noLock){setState('play');return;}
   try{var p=canvas.requestPointerLock&&canvas.requestPointerLock();if(p&&p.catch)p.catch(function(){});if(!canvas.requestPointerLock)lockFailed();}
@@ -3520,7 +3521,7 @@ syncSkinUI();
 
 /* ================= touch controls ================= */
 window.tJ={f:0,s:0,jump:false,down:false,run:false};
-function detectTouch(){return ctlMode==='touch'||(ctlMode==='auto'&&!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches));}
+function detectTouch(){return ctlMode==='touch'||(ctlMode==='auto'&&!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches&&matchMedia('(hover:none)').matches));}
 var touchEl=$('touch');
 window.syncTouch=function(){
   touchEl.hidden=!(touchOn&&state==='play');
@@ -3537,6 +3538,10 @@ function applyCtl(){
 }
 segButtons('ctlSeg').forEach(function(b){b.addEventListener('click',function(){ctlMode=b.dataset.ctl;savePrefs();applyCtl();});});
 applyCtl();
+/* a real mouse always wins in Auto mode: touch laptops and hybrids keep mouse look */
+window.addEventListener('pointermove',function(e){
+  if(e.pointerType==='mouse'&&ctlMode==='auto'&&touchOn){touchOn=false;noLock=false;canvas.style.cursor='';window.syncTouch();}
+},true);
 (function(){
   var J=window.tJ,base=$('tBase'),knob=$('tKnob'),zone=$('tZone'),joyId=null,cx0=0,cy0=0;
   function jset(t){
@@ -3749,7 +3754,7 @@ function leaveNet(){
 }
 $('mpLeave').addEventListener('click',leaveNet);
 mpList();
-window.__ctNet={NET:NET,onNet:onNet,leave:leaveNet,applyBlk:applyBlk,skin:skin,view:function(){return viewMode;},cycle:window.cycleView,detectTouch:detectTouch,allAv:function(){return allAv.length;}};
+window.__ctNet={NET:NET,onNet:onNet,leave:leaveNet,applyBlk:applyBlk,skin:skin,view:function(){return viewMode;},cycle:window.cycleView,detectTouch:detectTouch,touchOn:function(){return touchOn;},allAv:function(){return allAv.length;}};
 
 /* test hook: lets automated checks read and drive the game state */
 window.__ct={
@@ -3769,5 +3774,4 @@ window.__ct={
 /*APP-END*/
 })();
 </script>
-
-</body></html>
+</html>
