@@ -3762,9 +3762,16 @@ function buildAvatar(sk,label,arm){
   allAv.push(av);scene.add(g);return av;
 }
 function killAvatar(av){scene.remove(av.g);var i=allAv.indexOf(av);if(i>=0)allAv.splice(i,1);}
-function animAv(av,speed,dt){
+function punchExt(p){
+  if(p<0.22)return -0.4*Math.sin(p/0.22*Math.PI/2);
+  if(p<0.5){var q=(p-0.22)/0.28;return -0.4+1.4*(1-Math.pow(1-q,3));}
+  var r=(p-0.5)/0.5;return 1-r*r*(3-2*r);
+}
+function animAv(av,speed,dt,sw){
   av.phase+=dt*Math.min(speed,6)*2.2;var a=Math.sin(av.phase)*Math.min(1,speed/3)*0.9;
   av.legL.rotation.x=a;av.legR.rotation.x=-a;av.armL.rotation.x=-a;av.armR.rotation.x=a;
+  if(sw!==undefined&&sw<1){var e=punchExt(sw);av.armR.rotation.x=1.5*e+av.head.rotation.x*0.8*Math.max(0,e);av.armR.rotation.z=-0.15*Math.max(0,e);av.g.rotation.y+=0.0;}
+  else av.armR.rotation.z=0;
 }
 function lightAv(){var lt=U.uLight.value;allAv.forEach(function(av){for(var i=0;i<av.mats.length;i++)av.mats[i].color.copy(av.mats[i].userData.base).multiply(lt);});}
 function applySkinToHand(){
@@ -3781,7 +3788,7 @@ window.viewTick=function(dt){
   var spd=Math.hypot(player.vx,player.vz);
   selfAv.g.visible=viewMode>0;
   if(viewMode>0){
-    selfAv.g.position.set(player.x,player.y,player.z);selfAv.g.rotation.y=yaw;selfAv.head.rotation.x=pitch;animAv(selfAv,spd,dt);
+    selfAv.g.position.set(player.x,player.y,player.z);selfAv.g.rotation.y=yaw;selfAv.head.rotation.x=pitch;animAv(selfAv,spd,dt,swingT);
     var cp=camera.position,sg=viewMode===1?-1:1,dx=-Math.sin(yaw)*Math.cos(pitch)*sg,dy=Math.sin(pitch)*sg,dz=-Math.cos(yaw)*Math.cos(pitch)*sg,dist=4;
     var hit=raycast(world,cp.x,cp.y,cp.z,dx,dy,dz,dist+0.3);
     if(hit){var hd=Math.hypot(hit.x+0.5-cp.x,hit.y+0.5-cp.y,hit.z+0.5-cp.z);dist=Math.max(0.6,Math.min(dist,hd-0.7));}
@@ -3973,6 +3980,7 @@ function onNet(m,from){
   if(m.t==='st'){
     var r=remoteFor(m.from,m);r.tx=m.x;r.ty=m.y;r.tz=m.z;r.yaw=m.yaw;r.pitch=m.pitch;if(r.dim!==m.dim){r.dim=m.dim;mpList();}
     if(m.name&&m.name!==r.name){r.name=m.name;}
+    if(m.sw!==undefined)r.swT=m.sw;
     if(m.arm!==undefined&&m.arm!==r.arm){r.arm=m.arm;if(r.av){killAvatar(r.av);r.av=null;}}
     if(m.skin&&JSON.stringify(m.skin)!==JSON.stringify(r.sk)){r.sk=m.skin;r.name=m.skin.name||r.name;if(r.av){killAvatar(r.av);r.av=null;}mpList();}
   }else if(m.t==='info'){
@@ -3989,13 +3997,14 @@ window.mpRender=function(dt){
     if(!r.av)continue;
     var k=Math.min(1,dt*10),ox=r.x,oz=r.z;r.x+=(r.tx-r.x)*k;r.y+=(r.ty-r.y)*k;r.z+=(r.tz-r.z)*k;
     r.av.g.visible=true;r.av.g.position.set(r.x,r.y,r.z);r.av.g.rotation.y=r.yaw;r.av.head.rotation.x=r.pitch;
-    animAv(r.av,Math.hypot(r.x-ox,r.z-oz)/Math.max(dt,0.001),dt);
+    if(r.swT<1)r.swT=Math.min(1,r.swT+dt/0.3);
+    animAv(r.av,Math.hypot(r.x-ox,r.z-oz)/Math.max(dt,0.001),dt,r.swT);
   }
 };
 window.mpTick=function(dt){
   if(!NET.on)return;
   NET.sendT-=dt;NET.infoT-=dt;
-  if(NET.sendT<=0){NET.sendT=0.1;var m={t:'st',x:player.x,y:player.y,z:player.z,yaw:yaw,pitch:pitch,dim:curDim,arm:armKey()};if(NET.infoT<=0){NET.infoT=2;m.skin=skin;m.name=skin.name;}netSend(m);}
+  if(NET.sendT<=0){NET.sendT=0.1;var m={t:'st',x:player.x,y:player.y,z:player.z,yaw:yaw,pitch:pitch,dim:curDim,arm:armKey()};if(swingT<1)m.sw=Math.round(swingT*100)/100;if(NET.infoT<=0){NET.infoT=2;m.skin=skin;m.name=skin.name;}netSend(m);}
 };
 window.mpSendInfo=function(){if(NET.on)netSend({t:'info',name:skin.name,skin:skin});mpList();};
 window.mpDimChanged=function(){if(NET.on)NET.sendT=0;mpList();};
